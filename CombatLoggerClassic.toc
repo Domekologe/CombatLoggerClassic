@@ -1,0 +1,23 @@
+## Author: Domekologe
+## Interface: 40401
+## Notes: Automatically triggers combat logging when entering a raid.
+## Title: CombatLoggerClassic |cFF7C0AFFv2.0.0|r
+## Version: 2.0.0
+## SavedVariables: CombatLoggerClassicDB
+## OptionalDeps: Ace3
+## X-Embed: Ace3
+
+# Embedded libraries
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+embeds.xml
+
+#Language
+Lang\Locales.lua
+
+# Addon files
+CombatLoggerClassic.lua
+
+# Options Menu
+#CombatLoggerClassic.xml
+

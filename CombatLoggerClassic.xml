@@ -1,0 +1,84 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+    <Script file="CombatLoggerClassic.lua"/>
+
+	<Frame name="CombatLoggerClassicOptionsOnLoadFrame">
+		<Scripts>
+		  <OnLoad>
+			self.TimeSinceLastUpdate = 0; CLC_Start(self);
+		  </OnLoad>
+		  <OnUpdate></OnUpdate>
+		  <!--<OnEvent> -->
+		  <!--	CombatLoggerClassic_OnEvent(self, event, ...); -->
+		  <!--</OnEvent> -->
+		</Scripts>
+	</Frame>
+	
+	
+    <Frame name="CombatLoggerClassicConfig" parent="CombatLoggerClassicOptionsPanel" hidden="false" toplevel="true">
+        <Size x="600" y="400"/>
+        <Anchors>
+            <Anchor point="TOPLEFT"/>
+        </Anchors>
+        <Title text="Combat Logger Cataclysm"/>
+        
+        <Layers>
+            <Layer level="ARTWORK">
+                <FontString name="$parent_Description" inherits="GameFontHighlightSmall" text="Combat Logger Cataclysm">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" relativePoint="TOPLEFT" x="16" y="-16"/>
+                    </Anchors>
+                </FontString>
+				<FontString name="$parent_ShowLog" inherits="GameFontNormal" text="Show Log Status">
+				  <Anchors>
+					<Anchor point="TOPLEFT" relativeTo="$parent">
+					  <Offset>
+						<AbsDimension x="40" y="-56"/>
+					  </Offset>
+					</Anchor>
+				  </Anchors>
+				  <Color r="1" g="1" b="1"/>
+				</FontString>
+				<FontString name="$parent_Movable" inherits="GameFontNormal" text="Move Frame">
+				  <Anchors>
+					<Anchor point="TOPLEFT" relativeTo="$parent">
+					  <Offset>
+						<AbsDimension x="40" y="-106"/>
+					  </Offset>
+					</Anchor>
+				  </Anchors>
+				  <Color r="1" g="1" b="1"/>
+				</FontString>
+            </Layer>
+        </Layers>
+
+        <Frames>
+            <!-- Checkbox: Prüfe Buffs bei Bereitschaftscheck -->
+            <CheckButton name="$parentShowLog" inherits="InterfaceOptionsCheckButtonTemplate">
+                <Size x="26" y="26"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativePoint="TOPLEFT" x="16" y="-50"/>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+						CombatLoggerClassicDB.showLog = self:GetChecked();
+                        CombatLoggerClassic:ShowHide(self:GetChecked())
+                    </OnClick>
+                </Scripts>
+            </CheckButton>
+
+            <!-- Button: Test -->
+            <CheckButton name="$parentMovable" inherits="InterfaceOptionsCheckButtonTemplate">
+                <Size x="26" y="26"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativePoint="TOPLEFT" x="16" y="-100"/>
+                </Anchors>
+                <Scripts>
+                    <OnClick>
+						CombatLoggerClassicDB.frameMovable = self:GetChecked();
+                        CombatLoggerClassic:MakeFrameMovable(self:GetChecked())
+                    </OnClick>
+                </Scripts>
+            </CheckButton>
+        </Frames>
+    </Frame>
+</Ui>
