@@ -7,7 +7,8 @@ local fitzFont = LSM:Fetch("font", "Fitz")
 
 local L = LibStub("AceLocale-3.0"):GetLocale("CombatLoggerClassic")
 
-
+local RECHECK_DELAY_SEC = 0.5
+CombatLoggerClassic._manualOverride = nil  -- "on", "off" or nil
 
 --[[
     Initializing the addon using Ace3.
@@ -110,9 +111,16 @@ function CombatLoggerClassic:OnInitialize()
 end
 
 function CombatLoggerClassic:OnEnable()
+    -- Events that can change instance/logging state
     self:RegisterEvent("UPDATE_INSTANCE_INFO")
-    CombatLoggerClassic:CheckInstanceAndLog()
-	
+    self:RegisterEvent("PLAYER_ENTERING_WORLD")
+    self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+    self:RegisterEvent("PLAYER_DEAD")
+    self:RegisterEvent("PLAYER_UNGHOST")
+
+    -- Initial check
+    --CombatLoggerClassic:CheckInstanceAndLog()
+	self:RequestRecheck()
 	self:CreateTextFrame()
 	self:StartTimer()
 end
@@ -132,20 +140,109 @@ end
     Core functions
 --]]
 
-function CombatLoggerClassic:CheckInstanceAndLog()
-    local name, _, _, _, _, _, _, instanceID, instanceGroupSize, _ = GetInstanceInfo()
-    if CombatLoggerClassic.db.global[tonumber(instanceID)] then
-        if not LoggingCombat() then
-            LoggingCombat(true)
-            self:Print(L.LogInstanceActivated .. name .. " (" .. instanceGroupSize .. ").")
-        end
+function CombatLoggerClassic:OnDisable()
+    -- Intentionally left empty
+end
+
+function CombatLoggerClassic:IsRaidForced(idNum, instanceType)
+    if not idNum or idNum == 0 then return false end
+    if instanceType ~= "raid" then return false end
+    -- only raids that are enabled in options are forced
+    return self.db and self.db.global and self.db.global[idNum] == true
+end
+
+-- Event handlers just request a debounced re-check
+function CombatLoggerClassic:UPDATE_INSTANCE_INFO() self:RequestRecheck() end
+function CombatLoggerClassic:PLAYER_ENTERING_WORLD() self:RequestRecheck() end
+function CombatLoggerClassic:ZONE_CHANGED_NEW_AREA() self:RequestRecheck() end
+function CombatLoggerClassic:PLAYER_DEAD() self:RequestRecheck() end
+function CombatLoggerClassic:PLAYER_UNGHOST() self:RequestRecheck() end
+
+function CombatLoggerClassic:RequestRecheck()
+    if self._pendingRecheck then return end
+    self._pendingRecheck = true
+    if C_Timer and C_Timer.After then
+        C_Timer.After(RECHECK_DELAY_SEC, function()
+            self._pendingRecheck = false
+            self:CheckInstanceAndLog()
+        end)
     else
-        if LoggingCombat() then
-            self:Print(L.LogInstanceDeactivated)
-            LoggingCombat(false)
-        end
+        -- Fallback if C_Timer isn’t available (should be in MoP Classic)
+        self._pendingRecheck = false
+        self:CheckInstanceAndLog()
     end
 end
+
+-- Core logic: print only when logging state actually changes
+-- Core logic: print only on state changes; forced raids override manual override
+function CombatLoggerClassic:CheckInstanceAndLog()
+    local name, instanceType, _, _, _, _, _, instanceID, instanceGroupSize = GetInstanceInfo()
+    local idNum = tonumber(instanceID)
+
+    -- Transient/invalid during ghost/phase transitions; do nothing
+    if not idNum or idNum == 0 then
+        return
+    end
+
+    local isLogging = LoggingCombat()
+    local isRaidForced = self:IsRaidForced(idNum, instanceType)
+    local isTracked = self.db and self.db.global and self.db.global[idNum] == true
+
+    -- 1) Forced raids (selected in options) always log, ignore manual override
+    if isRaidForced then
+        if not isLogging then
+            LoggingCombat(true)
+            self._lastActiveInstanceId = idNum
+            if name and instanceGroupSize then
+                self:Print(L.LogInstanceActivated .. name .. " (" .. tostring(instanceGroupSize) .. ").")
+            else
+                self:Print(L.LogInstanceActivated .. tostring(idNum) .. ".")
+            end
+        end
+        return
+    end
+
+    -- 2) Outside forced raids: respect manual override if present
+    if self._manualOverride == "on" then
+        if not isLogging then
+            LoggingCombat(true)  -- keep ON
+            -- no print; manual button already printed L.LogStart
+        end
+        return
+    elseif self._manualOverride == "off" then
+        if isLogging then
+            LoggingCombat(false) -- keep OFF
+            -- no print; manual button already printed L.LogStopped
+        end
+        return
+    end
+
+    -- 3) No manual override -> normal auto rules (selected instances only)
+    if isTracked and not isLogging then
+        LoggingCombat(true)
+        self._lastActiveInstanceId = idNum
+        if name and instanceGroupSize then
+            self:Print(L.LogInstanceActivated .. name .. " (" .. tostring(instanceGroupSize) .. ").")
+        else
+            self:Print(L.LogInstanceActivated .. tostring(idNum) .. ".")
+        end
+        return
+    end
+
+    if (not isTracked) and isLogging then
+        self:Print(L.LogInstanceDeactivated)
+        LoggingCombat(false)
+        self._lastActiveInstanceId = nil
+        return
+    end
+
+    -- already correct state: do nothing (no spam)
+    if isTracked and isLogging then
+        self._lastActiveInstanceId = idNum
+    end
+end
+
+
 
 --[[
     Frame  on display
@@ -205,13 +302,17 @@ function CombatLoggerClassic:CreateTextFrame()
 				-- Start Log
 				rootDescription:CreateButton(L.MenuStartLog, function()
 					LoggingCombat(true)
+					CombatLoggerClassic._manualOverride = "on"
 					print(L.LogStart)
+					CombatLoggerClassic:RequestRecheck()
 				end)
-				
+
 				-- Stop Log
 				rootDescription:CreateButton(L.MenuStopLog, function()
 					LoggingCombat(false)
+					CombatLoggerClassic._manualOverride = "off"
 					print(L.LogStopped)
+					CombatLoggerClassic:RequestRecheck()
 				end)
 
 				-- Menü schließen
@@ -300,10 +401,10 @@ end
 function CombatLoggerClassic:GetLogStatus()
 	local combatActive = LoggingCombat()
     if (combatActive == true) then
-        return L.IsLogging -- Grüner Text
+        return L.IsLogging -- Green Text
 	end
     if (combatActive == false) then
-        return L.IsNotLogging -- Roter Text
+        return L.IsNotLogging -- Red Text
     end
 	if (combatActive == nil) then
         return L.LogError
@@ -358,13 +459,17 @@ function CombatLoggerClassic:ReSetupRightClickMenu()
 				-- Start Log
 				rootDescription:CreateButton(L.MenuStartLog, function()
 					LoggingCombat(true)
+					CombatLoggerClassic._manualOverride = "on"
 					print(L.LogStart)
+					CombatLoggerClassic:RequestRecheck()
 				end)
-				
+
 				-- Stop Log
 				rootDescription:CreateButton(L.MenuStopLog, function()
 					LoggingCombat(false)
+					CombatLoggerClassic._manualOverride = "off"
 					print(L.LogStopped)
+					CombatLoggerClassic:RequestRecheck()
 				end)
 
 				-- Menü schließen
