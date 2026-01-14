@@ -1,8 +1,8 @@
 ## Author: Domekologe
-## Interface: 40401,50500,50501,50502
+## Interface: 50503
 ## Notes: Automatically triggers combat logging when entering a raid.
 ## Title: CombatLoggerClassic |cFF7C0AFFv2.1.0|r
-## Version: 2.1.1
+## Version: 2.1.2
 ## SavedVariables: CombatLoggerClassicDB
 ## OptionalDeps: Ace3
 ## X-Embed: Ace3
