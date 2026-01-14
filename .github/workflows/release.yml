@@ -29,7 +29,7 @@ jobs:
       - name: Prepare addon folder
         run: |
           mkdir CombatLoggerClassic
-          cp CombatLoggerClassic.toc CombatLoggerClassic.lua CombatLoggerClassic/
+          cp CombatLoggerClassic.toc CombatLoggerClassic.lua CombatLoggerClassic.xml embeds.xml CombatLoggerClassic/
           cp -r Libs Lang Media CombatLoggerClassic/
 
       - name: Create ZIP
