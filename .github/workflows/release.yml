@@ -30,7 +30,7 @@ jobs:
         run: |
           mkdir CombatLoggerClassic
           cp CombatLoggerClassic.toc CombatLoggerClassic.lua CombatLoggerClassic/
-          cp -r Libs Locales Media CombatLoggerClassic/
+          cp -r Libs Lang Media CombatLoggerClassic/
 
       - name: Create ZIP
         run: |
